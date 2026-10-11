@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Check, X } from "lucide-react";
+import { Check } from "lucide-react";
 import { Wordmark } from "@/components/site/Nav";
 import { API_BASE, apiHeaders } from "@/lib/api";
 
@@ -120,4 +120,3 @@ function JobPage() {
   );
 }
 
-export { X };
