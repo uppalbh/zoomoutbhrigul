@@ -78,6 +78,16 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   if (res.status === 404) {
     throw new QuantroApiError(404, "NOT_FOUND", path, "Report not found.", false);
   }
+  if (res.status === 409) {
+    // Double-clicking Analyze: the job already exists, so reuse it instead of failing.
+    let body: any = {};
+    try {
+      body = await res.json();
+    } catch {
+      /* ignore */
+    }
+    return { job_id: body.job_id ?? body.detail, status: "queued" } as unknown as T;
+  }
   if (res.status >= 500) {
     let msg = `Backend error (${res.status})`;
     try {
