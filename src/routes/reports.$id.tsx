@@ -86,16 +86,16 @@ function Report({ r, id }: { r: Any; id: string }) {
       </div>
 
       <Section n="01" name="Source match" title="Where it came from" sub="How the submitted excerpt maps to the original recording.">
-        <SourceMatchCard data={r?.source_match} matched={matched} />
+        <SourceMatchCard data={r?.source_match} />
       </Section>
       <Section n="02" name="Fact check" title="What the claims say" sub="Claims made in the excerpt, checked against available evidence.">
-        <GenericCard data={r?.fact_check} />
+        <FactCheckCard data={r?.fact_check} />
       </Section>
       <Section n="03" name="Historical parallels" title="What it echoes" sub="Earlier statements and events that resemble this exchange.">
-        <GenericCard data={r?.historical_parallels} />
+        <ParallelsCard data={r?.historical_parallels} />
       </Section>
       <Section n="04" name="Manipulation check" title="Whether it was altered" sub="Signs of edits, splices or synthetic changes in the clip.">
-        <GenericCard data={r?.manipulation_check} />
+        <ManipulationCard data={r?.manipulation_check} />
       </Section>
 
       <footer className="border-t border-line bg-elevated px-6 py-12">
