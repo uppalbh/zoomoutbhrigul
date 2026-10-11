@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
 import { Wordmark } from "@/components/site/Nav";
-import { API_BASE, apiHeaders } from "@/lib/api";
+import { getJob, QuantroApiError, type Job } from "@/lib/api";
 
 export const Route = createFileRoute("/jobs/$id")({
   head: () => ({
@@ -59,8 +59,13 @@ function JobPage() {
     return () => { cancelled = true; if (timer) clearTimeout(timer); };
   }, [id, navigate]);
 
-  const failedJob = err ? { status: "failed", error: { message: err.message, stage: err.stage, code: err.code } } : job;
+  const view = err ? { status: "failed", stage: null, progress: 0, error: { message: err.message, stage: err.stage, code: err.code } } : job;
+  return <JobView id={id} job={view} />;
+}
 
+type JobViewData = { status: string; stage?: string | null; progress?: number; error?: { message?: string; stage?: string; code?: string } | null };
+
+function JobView({ id, job }: { id: string; job: JobViewData | null }) {
   const failed = job?.status === "failed";
   const activeIdx = Math.max(0, STAGES.findIndex(([k]) => k === (job?.stage ?? job?.status)));
   const pct = Math.round(job?.progress ?? (job ? (activeIdx / STAGES.length) * 100 : 0));

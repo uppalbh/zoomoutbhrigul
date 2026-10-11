@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { Wordmark } from "@/components/site/Nav";
 import { DetailList } from "@/components/site/Detail";
-import { API_BASE, apiHeaders } from "@/lib/api";
+import { getReport, QuantroApiError } from "@/lib/api";
 import { SourceMatchCard, FactCheckCard, ParallelsCard, ManipulationCard } from "@/components/report/cards";
 import demoReport from "@/fixtures/report_example.json";
 
@@ -33,11 +33,12 @@ function ReportPage() {
     retry: false,
     queryFn: async () => {
       if (id === "demo" || id === (demoReport as Any).report_id) return demoReport as Any;
-      if (!API_BASE) throw new Error("Analysis service is not configured.");
-      const res = await fetch(`${API_BASE}/reports/${id}`, { headers: apiHeaders() });
-      if (res.status === 404) throw new NotFound();
-      if (!res.ok) throw new Error(`Request failed (${res.status})`);
-      return (await res.json()) as Any;
+      try {
+        return (await getReport(id)) as Any;
+      } catch (e) {
+        if (e instanceof QuantroApiError && e.status === 404) throw new NotFound();
+        throw e instanceof QuantroApiError ? e : new Error("Unknown error");
+      }
     },
   });
 
