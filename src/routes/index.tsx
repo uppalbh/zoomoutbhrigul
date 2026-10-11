@@ -183,19 +183,48 @@ function Algorithm() {
 function TryIt() {
   const navigate = useNavigate();
   const [url, setUrl] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function submit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError(null);
+    e.stopPropagation();
+    console.log("[submit] fired with url:", url);
+
+    setErr(null); // clear any previous error BEFORE doing anything
     setLoading(true);
+
     try {
       const jobId = `job_${crypto.randomUUID()}`;
-      const { job_id } = await runAnalysis(url.trim(), jobId);
-      navigate({ to: "/jobs/$id", params: { id: String(job_id) } });
-    } catch (err) {
-      setError(err instanceof QuantroApiError ? err.message : "Something went wrong.");
+      console.log("[submit] jobId:", jobId);
+
+      const res = await fetch("/api/analyze", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-Key": import.meta.env.VITE_API_KEY ?? "",
+        },
+        body: JSON.stringify({
+          url: url.trim(),
+          job_id: jobId,
+          conversation_id: null,
+        }),
+      });
+
+      console.log("[submit] response:", res.status, res.statusText);
+
+      const body = await res.json();
+      console.log("[submit] body:", body);
+
+      if (!res.ok) {
+        throw new Error(body?.error?.message ?? body?.detail ?? `HTTP ${res.status}`);
+      }
+
+      navigate({ to: "/jobs/$id", params: { id: String(body.job_id) } });
+    } catch (e) {
+      console.error("[submit] failed:", e);
+      setErr(e instanceof Error ? e.message : "Unknown error");
+    } finally {
       setLoading(false);
     }
   }
@@ -206,12 +235,12 @@ function TryIt() {
         <div className="eyebrow">Submit a clip</div>
         <h2 className="mt-4 font-display text-[clamp(40px,5vw,64px)] font-medium leading-none tracking-[-0.05em]">Paste an excerpt <span className="red-under">link</span>.</h2>
         <p className="mt-5 text-lg text-ink-muted">We'll find the original recording, map the excerpt to it, and show you what changed.</p>
-        <form onSubmit={submit} className="mt-10 text-left">
-          {error && <p className="mb-3 text-sm text-chip-low-fg">{error}</p>}
+        <form onSubmit={handleSubmit} className="mt-10 text-left">
+          {err && <p className="text-accent-red font-mono text-sm">{err}</p>}
           <div className="flex gap-2">
             <input type="url" required value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://..."
-              className={`h-14 flex-1 rounded-md border bg-background px-4 outline-none focus:border-ink ${error ? "border-accent-red" : "border-line"}`} />
-            <button disabled={loading} className="slash-hover h-14 rounded-md bg-ink px-7 font-semibold text-background disabled:opacity-60">
+              className={`h-14 flex-1 rounded-md border bg-background px-4 outline-none focus:border-ink ${err ? "border-accent-red" : "border-line"}`} />
+            <button type="submit" disabled={loading} className="slash-hover h-14 rounded-md bg-ink px-7 font-semibold text-background disabled:opacity-60">
               {loading ? "Sending…" : "Analyze"}
             </button>
           </div>
