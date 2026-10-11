@@ -3,7 +3,7 @@ import { useState, type FormEvent } from "react";
 import { Search } from "lucide-react";
 import { Footer, Nav } from "@/components/site/Nav";
 import { DetailList } from "@/components/site/Detail";
-import { API_BASE, PHOTON_NUMBER, apiHeaders } from "@/lib/api";
+import { PHOTON_NUMBER, runAnalysis, QuantroApiError } from "@/lib/api";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -191,14 +191,10 @@ function TryIt() {
     setError(null);
     setLoading(true);
     try {
-      if (!API_BASE) throw new Error("Analysis service is not configured.");
-      const res = await fetch(`${API_BASE}/analyze`, { method: "POST", headers: apiHeaders(), body: JSON.stringify({ url, conversation_id: null }) });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error?.message ?? data?.message ?? `Request failed (${res.status})`);
-      navigate({ to: "/jobs/$id", params: { id: String(data.job_id) } });
+      const { job_id } = await runAnalysis(url.trim());
+      navigate({ to: "/jobs/$id", params: { id: String(job_id) } });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
+      setError(err instanceof QuantroApiError ? err.message : "Something went wrong.");
       setLoading(false);
     }
   }
