@@ -210,7 +210,7 @@ function TryIt() {
 
       if (!res.ok) throw new Error(body?.error?.message ?? body?.detail ?? `HTTP ${res.status}`);
 
-      router.push(`/jobs/${body.job_id}`);
+      router.navigate({ to: "/jobs/$id", params: { id: String(body.job_id) } });
     } catch (e) {
       console.error('[submit] error', e);
       setErr(e instanceof Error ? e.message : "Unknown error");
