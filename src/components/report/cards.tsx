@@ -50,6 +50,7 @@ const ghost = "inline-flex h-9 items-center rounded-md border border-line px-4 t
 
 /* ---------- ConfidenceChip ---------- */
 
+const NA: [string, string] = ["bg-chip-na-bg text-chip-na-fg", "Not assessed"];
 const TONES: Record<string, [string, string]> = {
   high: ["bg-chip-high-bg text-chip-high-fg", "High"],
   moderate: ["bg-chip-med-bg text-chip-med-fg", "Moderate"],
@@ -72,7 +73,7 @@ function Bullets({ items, faintText }: { items: string[]; faintText?: boolean })
 }
 
 export function ConfidenceChip({ level, basis, limitations, label = "Confidence" }: { level?: string; basis?: string[]; limitations?: string[]; label?: string }) {
-  const [tone, text] = TONES[level ?? ""] ?? TONES.not_assessed;
+  const [tone, text] = TONES[level ?? ""] ?? NA;
   return (
     <div>
       <div className="flex items-center gap-3">
@@ -182,7 +183,7 @@ export function FactCheckCard({ data }: { data: Any }) {
       </div>
       <div className="mt-6 space-y-4">
         {claims.length === 0 ? <EmptyMono>No checkable claims were identified.</EmptyMono> : claims.map((c, i) => {
-          const [tone, text] = VERDICT[c.verdict] ?? TONES.not_assessed;
+          const [tone, text] = VERDICT[c.verdict] ?? NA;
           const sources: Any[] = Array.isArray(c.sources) ? c.sources : [];
           return (
             <Box key={c.claim_id ?? i}>
