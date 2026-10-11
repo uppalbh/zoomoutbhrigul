@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
 import { Wordmark } from "@/components/site/Nav";
-import { API_BASE, apiHeaders } from "@/lib/api";
+import { getJob, QuantroApiError, type Job } from "@/lib/api";
 
 export const Route = createFileRoute("/jobs/$id")({
   head: () => ({
@@ -30,41 +30,42 @@ const STAGES = [
   ["notifying", "Notifying"],
 ] as const;
 
-type Job = {
-  status: string;
-  stage?: string;
-  progress?: number;
-  report_id?: string;
-  error?: { message?: string; stage?: string; code?: string };
-};
-
 function JobPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const [job, setJob] = useState<Job | null>(null);
+  const [err, setErr] = useState<QuantroApiError | null>(null);
 
   useEffect(() => {
-    let alive = true;
-    async function poll() {
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const tick = async () => {
       try {
-        if (!API_BASE) throw new Error("Analysis service is not configured.");
-        const res = await fetch(`${API_BASE}/jobs/${id}`, { headers: apiHeaders() });
-        if (!res.ok) throw new Error(`Request failed (${res.status})`);
-        const data: Job = await res.json();
-        if (!alive) return;
-        setJob(data);
-        if (data.status === "done" && data.report_id) {
-          navigate({ to: "/reports/$id", params: { id: data.report_id } });
+        const j = await getJob(id);
+        if (cancelled) return;
+        setJob(j);
+        if (j.status === "done" && j.report_id) {
+          navigate({ to: "/reports/$id", params: { id: j.report_id } });
+          return;
         }
+        if (j.status === "failed") return;
+        timer = setTimeout(tick, 2000);
       } catch (e) {
-        if (alive) setJob({ status: "failed", error: { message: e instanceof Error ? e.message : "Unknown error", stage: "connection", code: "network" } });
+        if (cancelled) return;
+        setErr(e instanceof QuantroApiError ? e : new QuantroApiError(0, "unknown", "unknown", "Unknown error"));
       }
-    }
-    poll();
-    const t = setInterval(poll, 2000);
-    return () => { alive = false; clearInterval(t); };
+    };
+    tick();
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
   }, [id, navigate]);
 
+  const view = err ? { status: "failed", stage: null, progress: 0, error: { message: err.message, stage: err.stage, code: err.code } } : job;
+  return <JobView id={id} job={view} />;
+}
+
+type JobViewData = { status: string; stage?: string | null; progress?: number; error?: { message?: string; stage?: string; code?: string } | null };
+
+function JobView({ id, job }: { id: string; job: JobViewData | null }) {
   const failed = job?.status === "failed";
   const activeIdx = Math.max(0, STAGES.findIndex(([k]) => k === (job?.stage ?? job?.status)));
   const pct = Math.round(job?.progress ?? (job ? (activeIdx / STAGES.length) * 100 : 0));
