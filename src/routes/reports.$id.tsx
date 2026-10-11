@@ -4,6 +4,8 @@ import { useState, type ReactNode } from "react";
 import { Wordmark } from "@/components/site/Nav";
 import { DetailList } from "@/components/site/Detail";
 import { API_BASE, apiHeaders } from "@/lib/api";
+import { SourceMatchCard, FactCheckCard, ParallelsCard, ManipulationCard } from "@/components/report/cards";
+import demoReport from "@/fixtures/report_example.json";
 
 export const Route = createFileRoute("/reports/$id")({
   head: () => ({
@@ -30,6 +32,7 @@ function ReportPage() {
     queryKey: ["report", id],
     retry: false,
     queryFn: async () => {
+      if (id === "demo" || id === (demoReport as Any).report_id) return demoReport as Any;
       if (!API_BASE) throw new Error("Analysis service is not configured.");
       const res = await fetch(`${API_BASE}/reports/${id}`, { headers: apiHeaders() });
       if (res.status === 404) throw new NotFound();
@@ -125,115 +128,6 @@ function Section({ n, name, title, sub, children }: { n: string; name: string; t
         <div className="mt-10">{children}</div>
       </div>
     </section>
-  );
-}
-
-/* ---------- helpers ---------- */
-
-const HIDDEN = /method|algorithm|_rules|internal|score|probab|percent/i;
-const CHIP = /confidence|verdict|rating|status|level|result|assessment/i;
-const humanize = (k: string) => k.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
-
-function Chip({ value }: { value: unknown }) {
-  if (value === null || value === undefined || value === "") return <span className="text-ink-faint">Not assessed</span>;
-  const v = String(value).toLowerCase();
-  const tone = /high|true|accurate|supported|verified|none|no evidence/.test(v) ? "bg-chip-high-bg text-chip-high-fg"
-    : /med|mixed|partial|context|uncertain/.test(v) ? "bg-chip-med-bg text-chip-med-fg"
-    : /low|false|misleading|altered|detected|unsupported/.test(v) ? "bg-chip-low-bg text-chip-low-fg"
-    : "bg-chip-na-bg text-chip-na-fg";
-  return <span className={`inline-block rounded-sm px-2 py-0.5 font-mono text-[11px] uppercase tracking-[0.08em] ${tone}`}>{String(value).replace(/_/g, " ")}</span>;
-}
-
-function renderValue(k: string, v: unknown): ReactNode {
-  if (CHIP.test(k)) return <Chip value={v} />;
-  if (v === null || v === undefined || v === "") return <span className="text-ink-faint">Unavailable</span>;
-  if (typeof v === "string" && /^https?:\/\//.test(v)) return <a href={v} target="_blank" rel="noreferrer" className="underline decoration-line hover:decoration-ink">{v}</a>;
-  if (Array.isArray(v)) return v.every((x) => typeof x !== "object") ? v.join(", ") : `${v.length} items`;
-  if (typeof v === "object") return Object.entries(v as object).filter(([kk]) => !HIDDEN.test(kk)).map(([kk, vv]) => `${humanize(kk)}: ${vv ?? "—"}`).join(" · ");
-  return String(v);
-}
-
-const TITLE_KEYS = ["claim", "title", "statement", "text", "headline", "name", "event"];
-const BODY_KEYS = ["explanation", "summary", "description", "rationale", "notes", "context"];
-
-function ItemCard({ item }: { item: Any }) {
-  if (typeof item !== "object" || item === null) return <div className="rounded-md border border-line p-5">{String(item)}</div>;
-  const tk = TITLE_KEYS.find((k) => typeof item[k] === "string");
-  const bk = BODY_KEYS.find((k) => typeof item[k] === "string");
-  const rest = Object.entries(item).filter(([k]) => k !== tk && k !== bk && !HIDDEN.test(k) && (typeof item[k] !== "object" || item[k] === null || Array.isArray(item[k]) || CHIP.test(k)));
-  return (
-    <div className="rounded-md border border-line bg-elevated p-6 transition-colors hover:border-ink">
-      {tk && <h3 className="font-display text-[22px] font-medium leading-snug tracking-[-0.02em]">{item[tk]}</h3>}
-      {bk && <p className="mt-3 text-ink-muted">{item[bk]}</p>}
-      {rest.length > 0 && <DetailList className="mt-5" rows={rest.map(([k, v]) => [humanize(k), renderValue(k, v)])} />}
-    </div>
-  );
-}
-
-function Empty({ text }: { text: string }) {
-  return (
-    <div className="hatch rounded-sm">
-      <div className="bg-panel px-6 py-14 text-center">
-        <div className="eyebrow">Not assessed</div>
-        <p className="mt-3 text-ink-muted">{text}</p>
-      </div>
-    </div>
-  );
-}
-
-function GenericCard({ data }: { data: Any }) {
-  if (data === null || data === undefined) return <Empty text="This section was not assessed for this clip." />;
-  if (Array.isArray(data)) return data.length ? <div className="space-y-4">{data.map((it, i) => <ItemCard key={i} item={it} />)}</div> : <Empty text="Nothing to report in this section." />;
-  if (typeof data !== "object") return <p>{String(data)}</p>;
-  const entries = Object.entries(data).filter(([k]) => !HIDDEN.test(k));
-  const lists = entries.filter(([, v]) => Array.isArray(v) && (v as Any[]).some((x) => typeof x === "object"));
-  const scalars = entries.filter(([, v]) => !lists.some(([, lv]) => lv === v));
-  const body = BODY_KEYS.find((k) => typeof data[k] === "string");
-  return (
-    <div className="space-y-8">
-      {body && <p className="text-[17px] leading-[1.6]">{data[body]}</p>}
-      {scalars.filter(([k]) => k !== body).length > 0 && (
-        <DetailList rows={scalars.filter(([k]) => k !== body).map(([k, v]) => [humanize(k), renderValue(k, v)])} />
-      )}
-      {lists.map(([k, v]) => (
-        <div key={k}>
-          <div className="eyebrow mb-4">{humanize(k)}</div>
-          <div className="space-y-4">{(v as Any[]).map((it, i) => <ItemCard key={i} item={it} />)}</div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function SourceMatchCard({ data, matched }: { data: Any; matched: boolean }) {
-  if (!matched || !data) {
-    return (
-      <div className="hatch rounded-sm">
-        <div className="bg-panel px-6 py-16 text-center">
-          <div className="eyebrow">No verified source</div>
-          <h3 className="mt-3 font-display text-3xl font-medium tracking-[-0.03em]">We couldn't confirm the original recording.</h3>
-          <p className="mx-auto mt-3 max-w-md text-ink-muted">{data?.summary ?? data?.explanation ?? "No candidate recording met the evidence threshold for this excerpt."}</p>
-        </div>
-      </div>
-    );
-  }
-  const ex = data.excerpt ?? data.submitted ?? {};
-  const full = data.full_recording ?? data.source ?? {};
-  const t = (o: Any) => o?.start != null || o?.end != null ? `${o?.start ?? "?"}–${o?.end ?? "?"}` : o?.timestamp ?? null;
-  return (
-    <div className="space-y-8">
-      <div className="hatch rounded-sm">
-        <div className="grid grid-cols-2 gap-6 bg-panel p-8">
-          {[["Excerpt", t(ex)], ["Full recording", t(full)]].map(([label, ts], i) => (
-            <div key={i} style={{ transform: `rotate(${i ? -3 : -5}deg)` }}>
-              <div className="mb-2 text-[12px] text-ink-muted">• {label} <span className="font-mono">{na(ts)}</span></div>
-              <div className="card-stripe aspect-[4/5] rounded-md border border-line" />
-            </div>
-          ))}
-        </div>
-      </div>
-      <GenericCard data={Object.fromEntries(Object.entries(data).filter(([k]) => !["excerpt", "full_recording", "submitted", "source"].includes(k)))} />
-    </div>
   );
 }
 
