@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Vite project: env vars use the VITE_ prefix (equivalent of NEXT_PUBLIC_).
 const env = import.meta.env as Record<string, string | undefined>;
-export const API_BASE = env["VITE_API_BASE_URL"] ?? "http://localhost:8000";
+export const API_BASE = "/api";
 export const API_KEY = env["VITE_API_KEY"] ?? "";
 export const PHOTON_NUMBER = env["VITE_PHOTON_NUMBER"];
 export const REPORT_BASE_URL = env["VITE_REPORT_BASE_URL"];
