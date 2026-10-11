@@ -1,9 +1,9 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { Search } from "lucide-react";
 import { Footer, Nav } from "@/components/site/Nav";
 import { DetailList } from "@/components/site/Detail";
-import { PHOTON_NUMBER, runAnalysis, QuantroApiError } from "@/lib/api";
+import { PHOTON_NUMBER, QuantroApiError } from "@/lib/api";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -181,22 +181,20 @@ function Algorithm() {
 }
 
 function TryIt() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [url, setUrl] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    e.stopPropagation();
-    console.log("[submit] fired with url:", url);
 
-    setErr(null); // clear any previous error BEFORE doing anything
+    setErr(null); // clear the stale error first
     setLoading(true);
 
     try {
       const jobId = `job_${crypto.randomUUID()}`;
-      console.log("[submit] jobId:", jobId);
+      console.log('[submit] fired', { url, jobId });
 
       const res = await fetch("/api/analyze", {
         method: "POST",
@@ -204,25 +202,17 @@ function TryIt() {
           "Content-Type": "application/json",
           "X-API-Key": import.meta.env["VITE_API_KEY"] ?? "",
         },
-        body: JSON.stringify({
-          url: url.trim(),
-          job_id: jobId,
-          conversation_id: null,
-        }),
+        body: JSON.stringify({ url: url.trim(), job_id: jobId, conversation_id: null }),
       });
 
-      console.log("[submit] response:", res.status, res.statusText);
-
       const body = await res.json();
-      console.log("[submit] body:", body);
+      console.log('[submit] response', res.status, body);
 
-      if (!res.ok) {
-        throw new Error(body?.error?.message ?? body?.detail ?? `HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error(body?.error?.message ?? body?.detail ?? `HTTP ${res.status}`);
 
-      navigate({ to: "/jobs/$id", params: { id: String(body.job_id) } });
+      router.push(`/jobs/${body.job_id}`);
     } catch (e) {
-      console.error("[submit] failed:", e);
+      console.error('[submit] error', e);
       setErr(e instanceof Error ? e.message : "Unknown error");
     } finally {
       setLoading(false);
@@ -235,7 +225,7 @@ function TryIt() {
         <div className="eyebrow">Submit a clip</div>
         <h2 className="mt-4 font-display text-[clamp(40px,5vw,64px)] font-medium leading-none tracking-[-0.05em]">Paste an excerpt <span className="red-under">link</span>.</h2>
         <p className="mt-5 text-lg text-ink-muted">We'll find the original recording, map the excerpt to it, and show you what changed.</p>
-        <form onSubmit={handleSubmit} className="mt-10 text-left">
+        <form onSubmit={onSubmit} className="mt-10 text-left">
           {err && <p className="text-accent-red font-mono text-sm">{err}</p>}
           <div className="flex gap-2">
             <input type="url" required value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://..."
