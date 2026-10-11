@@ -110,10 +110,10 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-export async function runAnalysis(url: string): Promise<AnalysisResult> {
+export async function runAnalysis(url: string, jobId: string): Promise<AnalysisResult> {
   return call<AnalysisResult>("/analyze", {
     method: "POST",
-    body: JSON.stringify({ url, conversation_id: null }),
+    body: JSON.stringify({ url, job_id: jobId, conversation_id: null }),
   });
 }
 

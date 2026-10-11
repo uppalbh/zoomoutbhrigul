@@ -191,7 +191,8 @@ function TryIt() {
     setError(null);
     setLoading(true);
     try {
-      const { job_id } = await runAnalysis(url.trim());
+      const jobId = `job_${crypto.randomUUID()}`;
+      const { job_id } = await runAnalysis(url.trim(), jobId);
       navigate({ to: "/jobs/$id", params: { id: String(job_id) } });
     } catch (err) {
       setError(err instanceof QuantroApiError ? err.message : "Something went wrong.");
